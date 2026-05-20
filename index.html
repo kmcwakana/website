@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>6m距離アラート</title>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 30px;
+      background: #f5f5f5;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    button {
+      padding: 12px 20px;
+      font-size: 16px;
+      margin: 10px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    #setBtn {
+      background: #4caf50;
+      color: white;
+    }
+
+    #startBtn {
+      background: #2196f3;
+      color: white;
+    }
+
+    .info {
+      margin-top: 20px;
+      font-size: 18px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>6m距離アラート</h1>
+
+  <p>
+    初期位置から6m以上離れるとスマホが振動します。
+  </p>
+
+  <button id="setBtn">初期位置を設定</button>
+  <button id="startBtn">監視開始</button>
+
+  <div class="info">
+    <p>設定距離: 6m</p>
+  </div>
+
+  <div class="info">
+    <p>現在の距離: <span id="distance">0</span> m</p>
+  </div>
+
+  <script>
+
+    // 初期位置
+    let startLat = null;
+    let startLon = null;
+
+    // GPS監視ID
+    let watchId = null;
+
+    // 表示用
+    const distanceText = document.getElementById("distance");
+
+    // 固定距離（6m）
+    const threshold = 6;
+
+    // 2地点間の距離計算
+    function calcDistance(lat1, lon1, lat2, lon2) {
+
+      const R = 6371000;
+
+      const toRad = deg => deg * Math.PI / 180;
+
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) *
+        Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+      return R * c;
+    }
+
+    // 初期位置設定
+    document.getElementById("setBtn").addEventListener("click", () => {
+
+      navigator.geolocation.getCurrentPosition(
+
+        position => {
+
+          startLat = position.coords.latitude;
+          startLon = position.coords.longitude;
+
+          alert("初期位置を設定しました");
+
+        },
+
+        error => {
+
+          alert("位置情報を取得できません");
+          console.error(error);
+
+        }
+
+      );
+
+    });
+
+    // 監視開始
+    document.getElementById("startBtn").addEventListener("click", () => {
+
+      if (startLat === null) {
+
+        alert("先に初期位置を設定してください");
+        return;
+
+      }
+
+      // 既存監視停止
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+
+      // GPS監視開始
+      watchId = navigator.geolocation.watchPosition(
+
+        position => {
+
+          const currentLat = position.coords.latitude;
+          const currentLon = position.coords.longitude;
+
+          const distance = calcDistance(
+            startLat,
+            startLon,
+            currentLat,
+            currentLon
+          );
+
+          // 表示更新
+          distanceText.textContent = distance.toFixed(1);
+
+          // 6m以上離れたら
+          if (distance >= threshold) {
+
+            // バイブレーション
+            if (navigator.vibrate) {
+              navigator.vibrate([300, 100, 300, 100, 300]);
+            }
+
+            alert("6m以上離れました");
+
+          }
+
+        },
+
+        error => {
+
+          console.error(error);
+
+        },
+
+        {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 5000
+        }
+
+      );
+
+    });
+
+  </script>
+
+</body>
+</html>
